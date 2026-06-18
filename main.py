@@ -1,100 +1,79 @@
-import os
+# main.py - Script principal : lance le pipeline complet
+# --------------------------------------------------------
+# Ce script orchestre les 3 etapes dans l'ordre :
+#   1. stt.py  : Audio  -> Texte    (transcription avec Whisper)
+#   2. llm.py  : Texte  -> Texte    (reponse avec Flan-T5)
+#   3. tts.py  : Texte  -> Audio    (synthese vocale avec MMS-TTS)
+#
+# Usage :
+#   python main.py --input input.mp3 --output output.wav
+
 import argparse
-import logging
-from modules.stt import SpeechToText
-from modules.llm import TextToText
-from modules.tts import TextToSpeech
-from record import record_audio
-import config
+import os
+from dotenv import load_dotenv
+from stt import transcribe
+from llm import generate
+from tts import synthesize
 
-# Configuration des logs
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger("Pipeline")
+# Chargement des variables d'environnement depuis le fichier .env
+# Le token HuggingFace (HF_TOKEN) est ainsi defini automatiquement
+load_dotenv()
 
-def run_pipeline(input_audio_path: str, output_audio_path: str, record_first: bool = False, record_duration: int = 5):
+if not os.environ.get("HF_TOKEN"):
+    print("[AVERTISSEMENT] HF_TOKEN non defini dans le fichier .env")
+    print("Certains modeles (Orpheus) necessite un token HuggingFace.")
+    print("Renseignez votre token dans le fichier .env")
+    print()
+
+
+def run_pipeline(input_audio: str, output_audio: str):
     """
-    Exécute le pipeline complet :
-    Enregistrement optionnel -> STT (Audio vers Texte) -> LLM (Texte vers Texte) -> TTS (Texte vers Audio).
-    
-    Args:
-        input_audio_path (str): Chemin du fichier audio d'entrée à transcrire.
-        output_audio_path (str): Chemin du fichier audio de sortie généré.
-        record_first (bool): Si True, enregistre l'audio depuis le microphone avant de lancer le traitement.
-        record_duration (int): Durée de l'enregistrement en secondes.
+    Execute le pipeline complet Audio -> Texte -> Texte -> Audio.
+
+    Parametres :
+        input_audio  : chemin vers le fichier audio d'entree (WAV ou MP3)
+        output_audio : chemin vers le fichier audio de sortie genere
     """
-    logger.info("=== Initialisation du Pipeline Local ===")
-    
-    # 1. Enregistrement optionnel depuis le micro
-    if record_first:
-        logger.info(f"Étape 0 : Enregistrement micro demandé dans '{input_audio_path}'")
-        record_audio(input_audio_path, duration=record_duration)
-        
-    if not os.path.exists(input_audio_path):
-        logger.error(f"Fichier audio d'entrée introuvable : '{input_audio_path}'")
-        logger.error("Veuillez fournir un fichier audio valide ou utiliser l'option --record pour enregistrer.")
-        return
+    print("=" * 50)
+    print("  PIPELINE : Audio -> Texte -> Reponse -> Audio")
+    print("=" * 50)
 
-    # 2. Speech-to-Text (Transcription)
-    stt_handler = SpeechToText()
-    transcription = stt_handler.transcribe(input_audio_path)
-    print(f"\n[STT - Transcription obtenue] :\n{transcription}\n")
-    
-    if not transcription:
-        logger.warning("Aucun texte n'a pu être extrait de l'audio. Arrêt du pipeline.")
-        return
+    # --- Etape 1 : Speech-to-Text ---
+    print("\n[1/3] Transcription de l'audio en texte...")
+    texte_transcrit = transcribe(input_audio)
+    print(f"\n>>> Transcription : {texte_transcrit}\n")
 
-    # 3. Text-to-Text (Traitement LLM / Génération)
-    llm_handler = TextToText()
-    response_text = llm_handler.generate_response(transcription)
-    print(f"[LLM - Réponse générée] :\n{response_text}\n")
-    
-    if not response_text:
-        logger.warning("Le modèle LLM n'a généré aucun texte. Arrêt du pipeline.")
-        return
+    # --- Etape 2 : Text-to-Text ---
+    print("[2/3] Generation d'une reponse texte...")
+    reponse_texte = generate(texte_transcrit)
+    print(f"\n>>> Reponse : {reponse_texte}\n")
 
-    # 4. Text-to-Speech (Synthèse Vocale)
-    tts_handler = TextToSpeech()
-    tts_handler.synthesize(response_text, output_audio_path)
-    print(f"[TTS - Audio de sortie sauvegardé dans] : {output_audio_path}\n")
-    
-    logger.info("=== Exécution du pipeline terminée avec succès ===")
+    # --- Etape 3 : Text-to-Speech ---
+    print("[3/3] Synthese vocale de la reponse...")
+    synthesize(reponse_texte, output_audio)
+    print(f"\n>>> Fichier audio genere : {output_audio}")
+
+    print("\n" + "=" * 50)
+    print("  Pipeline termine avec succes !")
+    print("=" * 50)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Pipeline local d'analyse et de génération de texte et audio (STT -> LLM -> TTS)."
+        description="Pipeline IA local : Audio -> Texte -> Reponse -> Audio"
     )
     parser.add_argument(
-        "-i", "--input",
+        "--input",
         type=str,
         default="input.wav",
-        help="Chemin du fichier audio d'entrée (par défaut: input.wav)"
+        help="Fichier audio d'entree (WAV ou MP3). Par defaut : input.wav"
     )
     parser.add_argument(
-        "-o", "--output",
+        "--output",
         type=str,
         default="output.wav",
-        help="Chemin du fichier audio généré en sortie (par défaut: output.wav)"
+        help="Fichier audio de sortie a generer. Par defaut : output.wav"
     )
-    parser.add_argument(
-        "-r", "--record",
-        action="store_true",
-        help="Activer l'enregistrement par microphone avant le traitement"
-    )
-    parser.add_argument(
-        "-d", "--duration",
-        type=int,
-        default=5,
-        help="Durée de l'enregistrement microphone en secondes (par défaut: 5)"
-    )
-    
+
     args = parser.parse_args()
-    
-    run_pipeline(
-        input_audio_path=args.input,
-        output_audio_path=args.output,
-        record_first=args.record,
-        record_duration=args.duration
-    )
+    run_pipeline(args.input, args.output)

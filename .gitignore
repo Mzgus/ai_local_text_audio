@@ -1,0 +1,6 @@
+# Ne pas versionner ces fichiers
+.env
+.venv/
+__pycache__/
+*.pyc
+output.wav
