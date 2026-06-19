@@ -16,18 +16,19 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForCausa
 LLM_MODEL = "google/flan-t5-base"
 
 
-def generate(texte_entree: str, longueur_max: int = 128) -> str:
+def generate(texte_entree: str, longueur_max: int = 128, device: str = "cpu") -> str:
     """
     Genere une reponse textuelle a partir d'un texte d'entree.
 
     Parametres :
         texte_entree  : le texte a traiter (ex: une transcription)
         longueur_max  : longueur maximale de la reponse generee
+        device        : appareil cible ("cpu" ou "cuda")
 
     Retourne :
         La reponse generee par le modele.
     """
-    print(f"[LLM] Chargement du modele ({LLM_MODEL})...")
+    print(f"[LLM] Chargement du modele ({LLM_MODEL}) sur {device}...")
 
     # On charge la configuration du modele pour savoir comment le charger
     config = AutoConfig.from_pretrained(LLM_MODEL)
@@ -36,18 +37,18 @@ def generate(texte_entree: str, longueur_max: int = 128) -> str:
     # Les modeles "encoder-decoder" (comme T5) se chargent differemment
     # des modeles "generatifs" classiques (comme LLaMA, Mistral, etc.)
     if getattr(config, "is_encoder_decoder", False):
-        model = AutoModelForSeq2SeqLM.from_pretrained(LLM_MODEL)
+        model = AutoModelForSeq2SeqLM.from_pretrained(LLM_MODEL).to(device)
         # Flan-T5 est deja entraine sur des instructions (par ex: "Tell me a joke."),
         # on lui passe donc le texte d'entree directement pour eviter de l'induire en erreur.
         prompt = texte_entree
     else:
-        model = AutoModelForCausalLM.from_pretrained(LLM_MODEL)
+        model = AutoModelForCausalLM.from_pretrained(LLM_MODEL).to(device)
         prompt = texte_entree
 
     print(f"[LLM] Generation d'une reponse pour : {texte_entree}")
 
     # Conversion du texte en tokens (format compris par le modele)
-    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)
 
     # Generation sans calcul de gradient pour economiser la memoire
     with torch.no_grad():
@@ -73,9 +74,24 @@ def generate(texte_entree: str, longueur_max: int = 128) -> str:
 
 # --- Test autonome : lancer ce fichier seul pour tester la generation ---
 if __name__ == "__main__":
-    import sys
+    import argparse
 
-    texte = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "What is the capital of France?"
-    reponse = generate(texte)
+    parser = argparse.ArgumentParser(description="Test autonome LLM")
+    parser.add_argument(
+        "prompt",
+        type=str,
+        nargs="?",
+        default="What is the capital of France?",
+        help="Le texte a envoyer au LLM"
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="Appareil cible ('cpu' ou 'cuda')"
+    )
+    args = parser.parse_args()
+
+    reponse = generate(args.prompt, device=args.device)
     print("\n=== Resultat ===")
     print(reponse)

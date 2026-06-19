@@ -15,12 +15,13 @@ STT_MODEL = "openai/whisper-large-v3"
 TARGET_SAMPLE_RATE = 16000  # Whisper attend de l'audio a 16 000 Hz
 
 
-def transcribe(audio_path: str) -> str:
+def transcribe(audio_path: str, device: str = "cpu") -> str:
     """
     Transcrit un fichier audio en texte.
 
     Parametre :
         audio_path : chemin vers le fichier audio (WAV ou MP3)
+        device : "cpu" ou "cuda"
 
     Retourne :
         Le texte prononce dans le fichier audio.
@@ -33,6 +34,7 @@ def transcribe(audio_path: str) -> str:
     stt_pipeline = pipeline(
         "automatic-speech-recognition",
         model=STT_MODEL,
+        device=device,
     )
 
     print(f"[STT] Lecture du fichier audio : {audio_path}")
@@ -63,10 +65,13 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage : python stt.py <chemin_audio>")
-        print("Exemple : python stt.py input.mp3")
+        print("Usage : python stt.py <chemin_audio> [device]")
+        print("Exemple : python stt.py input.mp3 cuda")
         sys.exit(1)
 
-    texte_transcrit = transcribe(sys.argv[1])
+    chemin_audio = sys.argv[1]
+    device = sys.argv[2] if len(sys.argv) > 2 else "cpu"
+
+    texte_transcrit = transcribe(chemin_audio, device=device)
     print("\n=== Resultat ===")
     print(texte_transcrit)

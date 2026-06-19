@@ -2,5 +2,3 @@ torch
 transformers
 soundfile
 scipy
-snac
-python-dotenv

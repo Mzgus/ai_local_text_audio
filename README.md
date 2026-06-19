@@ -30,9 +30,9 @@ Chaque fichier peut etre lance **seul** pour tester une etape independamment.
 |-------|-------------------|--------|-------------|
 | STT | `openai/whisper-large-v3` | ~3 Go | Transcription voix -> texte, haute precision, 100+ langues |
 | LLM | `google/flan-t5-base` | ~250 Mo | Generation de reponse textuelle |
-| TTS | `canopylabs/orpheus-3b-0.1-ft` | ~6 Go | Synthese vocale tres naturelle (Llama 3B + codec SNAC) |
+| TTS | `facebook/mms-tts-eng` | ~150 Mo | Synthese vocale (anglais) |
 
-> **Note importante** : Le total a telecharger est environ **9 Go** lors du premier lancement.
+> **Note importante** : Le total a telecharger est environ **3.4 Go** lors du premier lancement.
 > Les modeles sont ensuite mis en cache et ne sont plus retelecharges.
 
 ---
@@ -41,12 +41,11 @@ Chaque fichier peut etre lance **seul** pour tester une etape independamment.
 
 | Composant | Minimum recommande |
 |-----------|-------------------|
-| RAM | 16 Go (sans GPU) |
-| GPU VRAM | 12 Go (pour executer sur GPU) |
-| Stockage | 12 Go libres (cache des modeles) |
+| RAM | 8 Go |
+| GPU VRAM | 4 Go (pour executer sur GPU) |
+| Stockage | 5 Go libres (cache des modeles) |
 
-> Si vous n'avez pas de GPU, le pipeline fonctionne sur CPU mais sera **tres lent**
-> (plusieurs minutes par etape). Avec un GPU NVIDIA, chaque etape prend quelques secondes.
+> Le pipeline fonctionne sur CPU ou sur un GPU avec au moins 4 Go de VRAM. Une execution GPU prendra quelques secondes.
 
 ---
 
@@ -54,74 +53,86 @@ Chaque fichier peut etre lance **seul** pour tester une etape independamment.
 
 ### 1. Creer un environnement virtuel Python
 
-```powershell
-python -m venv .venv
+```bash
+python3 -m venv .venv
 ```
 
-### 2. Installer les dependances
+### 2. Activer l'environnement virtuel
 
+**Sur Linux/macOS :**
+```bash
+source .venv/bin/activate
+```
+
+**Sur Windows (PowerShell) :**
 ```powershell
-.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\Activate.ps1
+```
+
+**Sur Windows (CMD) :**
+```cmd
+.venv\Scripts\activate.bat
+```
+
+### 3. Installer les dependances
+
+```bash
+pip install -r requirements.txt
 ```
 
 ---
 
 ## Utilisation
 
+(Assurez-vous que l'environnement virtuel est activé)
+
 ### Lancer le pipeline complet
 
 Placez votre fichier audio a la racine du projet (WAV ou MP3) :
 
-```powershell
-.venv\Scripts\python main.py --input input.mp3 --output output.wav
+```bash
+python main.py --input input.mp3 --output output.wav --device cpu
 ```
 
+> **Note :** Vous pouvez remplacer `--device cpu` par `--device cuda` pour utiliser votre carte graphique NVIDIA (si elle dispose d'au moins 6 Go de VRAM).
+
 Le terminal affichera le resultat de chaque etape. A la fin, `output.wav` contiendra
-la reponse synthetisee par Orpheus.
+la reponse synthetisee par MMS-TTS.
 
 ---
 
 ### Tester chaque etape independamment
 
 **Tester la transcription (STT) :**
-```powershell
-.venv\Scripts\python stt.py input.mp3
+```bash
+python stt.py input.mp3 cpu
 ```
+*(Remplacez `cpu` par `cuda` pour tester sur GPU)*
 
 **Tester la generation de texte (LLM) :**
-```powershell
-.venv\Scripts\python llm.py "What is the capital of France?"
-```
-
+```bash
+python llm.py "What is the capital of France?" --device cpu
 **Tester la synthese vocale (TTS) :**
-```powershell
-.venv\Scripts\python tts.py "Hello, this is a test." output.wav tara
+```bash
+python tts.py "Hello, this is a test." output.wav none cpu
 ```
-
-Voix disponibles pour Orpheus : `tara`, `leah`, `jess`, `leo`, `dan`, `mia`, `zac`, `zoe`
+*(Remplacez `cpu` par `cuda` pour tester sur GPU)*
 
 ---
 
-## Comment fonctionne Orpheus TTS
+## Comment fonctionne MMS-TTS
 
-Orpheus n'est pas un modele TTS classique. C'est un LLM (grand modele de langage)
-base sur Llama 3B, specialise pour la synthese vocale. Son fonctionnement :
+MMS-TTS est un modele de synthese vocale leger developpe par Meta (Facebook) utilisant l'architecture VITS. Son fonctionnement :
 
 ```
 Texte d'entree
      |
      v
-[Orpheus LLM] -- genere des tokens audio (codes SNAC)
-     |
-     v
-[Codec SNAC]  -- decode les tokens en signal audio
+[MMS-TTS Pipeline] -- genere directement la forme d'onde
      |
      v
 Fichier WAV de sortie
 ```
-
-Le codec **SNAC** (Simple Neural Audio Codec) travaille sur 3 couches de resolution
-pour reconstruire un audio de qualite a 24 000 Hz.
 
 ---
 
@@ -135,14 +146,18 @@ Exemple avec un audio de la question "Quelle est la capitale de la France ?" :
 ==================================================
 
 [1/3] Transcription de l'audio en texte...
-[STT] Chargement du modele openai/whisper-large-v3...
+[STT] Chargement du modele openai/whisper-large-v3 sur cpu...
 >>> Transcription : Quelle est la capitale de la France ?
 
 [2/3] Generation d'une reponse texte...
+[LLM] Chargement du modele (google/flan-t5-base) sur cpu...
 >>> Reponse : Paris
 
 [3/3] Synthese vocale de la reponse...
-[TTS] Generation audio avec la voix 'tara'...
+[TTS] Chargement du modele MMS-TTS (facebook/mms-tts-eng) sur cpu...
+[TTS] Generation de la synthese vocale pour : Paris
+[TTS] Sauvegarde de l'audio dans : output.wav
+[TTS] Fichier audio genere avec succes (16000 Hz).
 >>> Fichier audio genere : output.wav
 
 ==================================================
