@@ -12,14 +12,13 @@ from transformers import pipeline
 TTS_MODEL = "facebook/mms-tts-eng"
 
 
-def synthesize(texte: str, output_path: str, voice: str = None, device: str = "cpu") -> None:
+def synthesize(texte: str, output_path: str, device: str = "cpu") -> None:
     """
     Convertit un texte en fichier audio WAV avec le modele MMS-TTS de Meta.
 
     Parametres :
         texte       : le texte a prononcer (en anglais de preference)
         output_path : chemin du fichier audio de sortie (ex: "output.wav")
-        voice       : ignore (conserve pour compatibilite de signature)
         device      : appareil cible ("cpu" ou "cuda")
     """
     if not texte:
@@ -60,14 +59,13 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage : python tts.py \"<texte>\" [fichier_sortie.wav] [voix] [device]")
-        print("Exemple : python tts.py \"Hello world\" output.wav eng cpu")
+        print("Usage : python tts.py \"<texte>\" [fichier_sortie.wav] [device]")
+        print("Exemple : python tts.py \"Hello world\" output.wav cpu")
         sys.exit(1)
 
     texte = sys.argv[1]
     fichier_sortie = sys.argv[2] if len(sys.argv) > 2 else "output.wav"
-    voix = sys.argv[3] if len(sys.argv) > 3 else None
-    device = sys.argv[4] if len(sys.argv) > 4 else "cpu"
+    device = sys.argv[3] if len(sys.argv) > 3 else "cpu"
 
-    synthesize(texte, fichier_sortie, voix, device=device)
+    synthesize(texte, fichier_sortie, device=device)
     print(f"\n=== Resultat : fichier '{fichier_sortie}' cree sur '{device}' ===")

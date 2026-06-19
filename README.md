@@ -112,9 +112,11 @@ python stt.py input.mp3 cpu
 **Tester la generation de texte (LLM) :**
 ```bash
 python llm.py "What is the capital of France?" --device cpu
+```
+
 **Tester la synthese vocale (TTS) :**
 ```bash
-python tts.py "Hello, this is a test." output.wav none cpu
+python tts.py "Hello, this is a test." output.wav cpu
 ```
 *(Remplacez `cpu` par `cuda` pour tester sur GPU)*
 
