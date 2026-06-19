@@ -14,7 +14,7 @@ ai_local_text_audio/
 |
 |-- stt.py            <- Etape 1 : Audio -> Texte (whisper-large-v3)
 |-- llm.py            <- Etape 2 : Texte -> Texte (flan-t5-base)
-|-- tts.py            <- Etape 3 : Texte -> Audio (orpheus-3b-0.1-ft)
+|-- tts.py            <- Etape 3 : Texte -> Audio (mms-tts-eng)
 |
 |-- main.py           <- Lance les 3 etapes a la suite
 |-- requirements.txt  <- Dependances Python a installer
